@@ -137,3 +137,174 @@ If you find granite models useful, please cite:
   year={2024}
 }
 ```
+
+
+Project to Build 
+Below is the entire README in **pure GitHub‑flavoured Markdown**—ready to drop straight into `README.md` (no commentary, no extra fences).  Copy it verbatim and commit.
+
+````markdown
+# Granite‑CLI Assist
+
+![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)
+![Build](https://img.shields.io/github/actions/workflow/status/<your-gh-user>/granite-cli-assist/ci.yml)
+![Docker Pulls](https://img.shields.io/docker/pulls/<your-gh-user>/granite-cli-assist)
+
+> **A one‑command, containerised AI shell companion for any Linux workstation**  
+> Powered by [`ibm‑granite/granite‑7b‑base`](https://huggingface.co/ibm-granite/granite-7b-base).
+
+---
+
+## ✨ Why use this?
+
+* **Zero‑install LLM on any Ubuntu 22.04 box** – `docker run` and you’re chatting.  
+* Works **online or fully offline** (model blobs baked into the image).  
+* **Terminal UX** – up/down history, fuzzy search, slash‑commands (`/code`, `/save`, `/exit`).  
+* **SQLite brain** – every conversation is stored and re‑loadable with `--context`.  
+* **Prod‑ready** – health‑check route, configurable logging, GitHub Actions CI, CPU/GPU builds.  
+
+---
+
+## 🗺️ Table of contents
+
+1. [Architecture](#architecture)  
+2. [Quick‑start](#quick-start)  
+3. [CLI reference](#cli-reference)  
+4. [Configuration](#configuration)  
+5. [Developing locally](#developing-locally)  
+6. [Testing & CI](#testing--ci)  
+7. [Road‑map](#road-map)  
+8. [License & acknowledgements](#license--acknowledgements)  
+
+---
+
+## 🏗️ Architecture
+
+```mermaid
+graph TD;
+    subgraph Container
+        U[(User Bash TUI)]
+        C[cli.sh] -->|stdin/stdout| U
+        U -->|HTTP POST /generate| API[FastAPI app.py]
+        API -->|Inference| Granite[Granite‑7B Model]
+        API -->|SQL| DB[(SQLite)]
+    end
+    API -->|/livez| Probe[Health‑check]
+````
+
+* **cli.sh** – thin Bash wrapper: reads user input, `curl`s FastAPI, pretty‑prints JSON.
+* **FastAPI** – `/generate`, `/livez`, `/history/{session_id}`. Streams tokens as they land.
+* **SQLite** – `messages` (prompt, response, ts), `sessions` (uuid, title).
+* **Model** – `ibm‑granite/granite‑7b‑base` loaded via `transformers` + `bitsandbytes` (4‑bit).
+
+---
+
+## ⚡ Quick‑start
+
+### Prerequisites
+
+| Host OS          | Runtime     | GPU build ?                     | RAM          |
+| ---------------- | ----------- | ------------------------------- | ------------ |
+| Ubuntu 22.04 LTS | Docker 24 + | Optional (NVIDIA 470 + drivers) | ≥ 14 GB free |
+
+```bash
+# 1 — Pull the CPU‑only image (≈6.5 GB)
+docker pull ghcr.io/<your-gh-user>/granite-cli-assist:0.1-cpu
+
+# 2 — Chat!
+docker run --rm -it ghcr.io/<your-gh-user>/granite-cli-assist:0.1-cpu
+```
+
+Expected prompt:
+
+```text
+🪨  Granite‑CLI Assist v0.1
+Type '/exit' to quit • '/help' for commands
+‣
+```
+
+---
+
+## 🖥️ CLI reference
+
+| Command         | Description                                 |
+| --------------- | ------------------------------------------- |
+| *plain text*    | Send prompt to Granite                      |
+| `/code`         | Copy last response to clipboard (`xclip`)   |
+| `/save <title>` | Save current session under a custom title   |
+| `/load <id>`    | Resume previous session                     |
+| `/history`      | Fuzzy‑search past prompts/responses (`fzf`) |
+| `/exit`         | Quit                                        |
+
+Arrow ↑/↓ cycles through prompt history.
+
+---
+
+## 🔧 Configuration
+
+Override defaults with `docker run -e KEY=value …`.
+
+| Variable      | Default                       | Purpose                             |
+| ------------- | ----------------------------- | ----------------------------------- |
+| `MODEL_NAME`  | `ibm-granite/granite-7b-base` | HF repo or local path               |
+| `CONTEXT_LEN` | `4096`                        | Max tokens per chat                 |
+| `DB_PATH`     | `/data/history.db`            | SQLite file                         |
+| `GPU`         | `false`                       | Set `true` when using `*-gpu` image |
+| `HF_HOME`     | `/models`                     | Model cache dir                     |
+
+---
+
+## 👩‍💻 Developing locally
+
+```bash
+git clone https://github.com/<your-gh-user>/granite-cli-assist
+cd granite-cli-assist
+
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements/dev.txt
+
+# Run FastAPI locally
+uvicorn src.app:api --reload
+```
+
+### Build images
+
+```bash
+make build_cpu   # tiny‑cuda‑nn stripped, model quantised
+make build_gpu   # uses nvidia/cuda:12.2.0-base
+```
+
+---
+
+## ✅ Testing & CI
+
+| Tool               | Coverage                                         |
+| ------------------ | ------------------------------------------------ |
+| **PyTest**         | API unit tests (mocked model)                    |
+| **ShellCheck**     | Static analysis for `cli.sh`                     |
+| **Hadolint**       | Dockerfile best‑practices                        |
+| **GitHub Actions** | Matrix (`cpu`, `gpu`): lint → tests → build/push |
+
+---
+
+## 🗺️ Road‑map
+
+* [ ] `/edit` command – in‑prompt code editing with `$EDITOR`
+* [ ] WebSocket streaming for lower‑latency UX
+* [ ] Plugin system (man‑page summariser, diff‑explainer)
+* [ ] Packaging for **Homebrew** & **scoop**
+
+See [Issues](https://github.com/<your-gh-user>/granite-cli-assist/issues) to discuss features.
+
+---
+
+## 📜 License & acknowledgements
+
+* Code: **Apache 2.0**
+* Model: © IBM, Apache 2.0 – see [`LICENSE-model`](LICENSE-model).
+* Thanks to the IBM Granite team for open‑sourcing the weights, and to the creators of **FastAPI**, **Uvicorn**, **fzf**, and **bitsandbytes**.
+
+> *Happy hacking!* — Mohammed Farhaan Buckas
+
+```
+::contentReference[oaicite:0]{index=0}
+```
